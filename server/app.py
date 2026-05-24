@@ -13,8 +13,30 @@ app = create_app(env)
 
 class Books(Resource):
     def get(self):
-        books = [BookSchema().dump(b) for b in Book.query.all()]
-        return books, 200
+        # 1. Extract query parameters with type-casting and default fallbacks
+        page = request.args.get('page', default=1, type=int)
+        per_page = request.args.get('per_page', default=5, type=int)
+        
+        # 2. Execute paginated query using error_out=False to handle out-of-bounds pages
+        pagination = Book.query.paginate(
+            page=page, 
+            per_page=per_page, 
+            error_out=False
+        )
+        
+        # 3. Serialize only the current page's matching items
+        items_json = [BookSchema().dump(b) for b in pagination.items]
+        
+        # 4. Construct response dictionary matching test requirements precisely
+        response_data = {
+            "page": page,
+            "per_page": per_page,
+            "items": items_json,
+            "total": pagination.total,
+            "total_pages": pagination.pages
+        }
+        
+        return make_response(jsonify(response_data), 200)
 
 
 api.add_resource(Books, '/books', endpoint='books')
